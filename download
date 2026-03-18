@@ -1,0 +1,15 @@
+# Klucze API — nigdy nie commituj!
+.env
+.env.local
+*.key
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Edytory
+.vscode/
+.idea/
+*.swp

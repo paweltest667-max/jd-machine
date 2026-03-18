@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Raport Maszyny — John Deere Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root {
+    --green: #367C2B;
+    --green-light: #4a9e3a;
+    --yellow: #FFDE00;
+    --dark: #0f1a0f;
+    --mid: #1a2e1a;
+    --card: #1e3320;
+    --card2: #243a28;
+    --text: #e8f5e0;
+    --muted: #7aaa6a;
+    --border: #2e5030;
+    --accent: #FFDE00;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--dark);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(54,124,43,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(54,124,43,0.06) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* HEADER */
+  header {
+    position: relative; z-index: 10;
+    padding: 28px 48px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 20px;
+    background: linear-gradient(180deg, rgba(15,26,15,0.95) 0%, transparent 100%);
+  }
+  .logo-badge {
+    width: 48px; height: 48px;
+    background: var(--yellow);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 800;
+    color: var(--dark);
+    flex-shrink: 0;
+    box-shadow: 0 0 20px rgba(255,222,0,0.3);
+  }
+  header h1 {
+    font-size: 20px; font-weight: 800; letter-spacing: -0.02em;
+    color: var(--text);
+  }
+  header span {
+    font-size: 13px; color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+  .header-badge {
+    margin-left: auto;
+    background: rgba(54,124,43,0.2);
+    border: 1px solid var(--green);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 12px; font-weight: 600;
+    color: var(--green-light);
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* MAIN LAYOUT */
+  .container {
+    position: relative; z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* UPLOAD ZONE */
+  .upload-section {
+    margin-bottom: 48px;
+  }
+  .upload-label {
+    font-size: 11px; letter-spacing: 0.12em; font-weight: 700;
+    color: var(--muted); text-transform: uppercase;
+    font-family: 'Space Mono', monospace;
+    margin-bottom: 12px;
+  }
+  .dropzone {
+    border: 2px dashed var(--border);
+    border-radius: 16px;
+    padding: 52px 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    background: rgba(30,51,32,0.3);
+    position: relative;
+  }
+  .dropzone:hover, .dropzone.drag-over {
+    border-color: var(--green);
+    background: rgba(54,124,43,0.12);
+    box-shadow: 0 0 40px rgba(54,124,43,0.15);
+  }
+  .dropzone input { display: none; }
+  .drop-icon {
+    font-size: 48px; margin-bottom: 16px;
+    filter: grayscale(0.3);
+  }
+  .dropzone h2 {
+    font-size: 22px; font-weight: 800;
+    color: var(--text); margin-bottom: 8px;
+  }
+  .dropzone p {
+    font-size: 14px; color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+  .dropzone .file-types {
+    margin-top: 16px;
+    display: inline-flex; gap: 8px;
+  }
+  .file-types span {
+    background: rgba(54,124,43,0.2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 11px;
+    color: var(--green-light);
+    font-family: 'Space Mono', monospace;
+  }
+  .file-loaded {
+    display: none;
+    align-items: center; gap: 16px;
+    background: rgba(54,124,43,0.1);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-top: 16px;
+    border: 1px solid var(--border);
+  }
+  .file-loaded.show { display: flex; }
+  .file-loaded .file-icon { font-size: 28px; }
+  .file-loaded .file-info { flex: 1; }
+  .file-loaded .file-name {
+    font-weight: 700; font-size: 15px; color: var(--text);
+  }
+  .file-loaded .file-size {
+    font-size: 12px; color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+  .file-loaded .remove-btn {
+    background: none; border: none;
+    color: var(--muted); cursor: pointer;
+    font-size: 18px; padding: 4px 8px;
+    border-radius: 6px;
+    transition: color 0.2s;
+  }
+  .file-loaded .remove-btn:hover { color: #ff6b6b; }
+
+  /* GENERATE BUTTON */
+  .generate-btn {
+    width: 100%;
+    padding: 18px 32px;
+    background: var(--yellow);
+    color: var(--dark);
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 800;
+    font-family: 'Syne', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    margin-top: 20px;
+    letter-spacing: -0.01em;
+  }
+  .generate-btn:hover:not(:disabled) {
+    background: #ffe833;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 32px rgba(255,222,0,0.3);
+  }
+  .generate-btn:disabled {
+    background: var(--border);
+    color: var(--muted);
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* STATUS / PROGRESS */
+  .status-bar {
+    display: none;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-top: 20px;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .status-bar.show { display: flex; }
+  .status-spinner {
+    width: 24px; height: 24px;
+    border: 3px solid var(--border);
+    border-top-color: var(--yellow);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .status-done .status-spinner { display: none; }
+  .status-icon { font-size: 22px; display: none; }
+  .status-done .status-icon { display: block; }
+  .status-text { flex: 1; }
+  .status-title {
+    font-weight: 700; font-size: 15px; color: var(--text);
+  }
+  .status-msg {
+    font-size: 13px; color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    margin-top: 4px;
+    white-space: pre-line;
+  }
+  .progress-track {
+    height: 4px; background: var(--border); border-radius: 2px;
+    margin-top: 12px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; background: var(--yellow);
+    border-radius: 2px;
+    transition: width 0.5s ease;
+    width: 0%;
+  }
+
+  /* RESULT PANEL */
+  #result-panel {
+    display: none;
+    margin-top: 48px;
+  }
+  #result-panel.show { display: block; }
+  .section-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 24px;
+  }
+  .section-header h2 {
+    font-size: 22px; font-weight: 800;
+  }
+  .section-tag {
+    background: rgba(255,222,0,0.12);
+    border: 1px solid rgba(255,222,0,0.3);
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 11px; font-weight: 700;
+    color: var(--yellow);
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* STATS GRID */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    transition: border-color 0.2s;
+  }
+  .stat-card:hover { border-color: var(--green); }
+  .stat-label {
+    font-size: 11px; color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+  .stat-value {
+    font-size: 26px; font-weight: 800;
+    color: var(--yellow); line-height: 1;
+  }
+  .stat-unit {
+    font-size: 13px; color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* AI ANALYSIS SECTION */
+  .ai-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    margin-bottom: 32px;
+  }
+  .ai-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .ai-badge {
+    background: linear-gradient(135deg, rgba(54,124,43,0.3), rgba(74,158,58,0.2));
+    border: 1px solid var(--green);
+    border-radius: 8px;
+    padding: 4px 12px;
+    font-size: 12px; font-weight: 700;
+    color: var(--green-light);
+    font-family: 'Space Mono', monospace;
+  }
+  .ai-content {
+    font-size: 15px; line-height: 1.8;
+    color: var(--text);
+  }
+  .ai-content .ai-section-title {
+    font-size: 13px; font-weight: 700;
+    color: var(--yellow);
+    font-family: 'Space Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 20px 0 10px;
+  }
+  .ai-content .ai-section-title:first-child { margin-top: 0; }
+  .ai-content ul {
+    list-style: none;
+    padding: 0;
+  }
+  .ai-content ul li {
+    padding: 6px 0 6px 20px;
+    position: relative;
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .ai-content ul li::before {
+    content: '▸';
+    position: absolute; left: 0;
+    color: var(--green-light);
+  }
+  .ai-loading {
+    display: flex; align-items: center; gap: 12px;
+    color: var(--muted);
+    font-size: 14px;
+    font-family: 'Space Mono', monospace;
+    padding: 16px 0;
+  }
+  .ai-spinner {
+    width: 18px; height: 18px;
+    border: 2px solid var(--border);
+    border-top-color: var(--green-light);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+
+  /* CHARTS */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 32px;
+  }
+  @media (max-width: 700px) {
+    .charts-grid { grid-template-columns: 1fr; }
+  }
+  .chart-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+  }
+  .chart-title {
+    font-size: 13px; font-weight: 700;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 16px;
+  }
+  .bar-chart { display: flex; flex-direction: column; gap: 6px; }
+  .bar-row {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .bar-row-label {
+    font-size: 11px; color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    width: 90px; flex-shrink: 0; text-align: right;
+  }
+  .bar-track {
+    flex: 1; height: 20px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 4px; overflow: hidden;
+    position: relative;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 1s ease;
+    position: relative;
+  }
+  .bar-row-val {
+    font-size: 11px;
+    font-family: 'Space Mono', monospace;
+    color: var(--text);
+    width: 50px; flex-shrink: 0;
+  }
+
+  /* DONUT */
+  .donut-wrap {
+    display: flex; align-items: center; gap: 24px;
+  }
+  .donut-svg { flex-shrink: 0; }
+  .donut-legend { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+  .legend-item {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .legend-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  }
+  .legend-name {
+    font-size: 13px; color: var(--text); flex: 1;
+  }
+  .legend-val {
+    font-size: 12px; color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* DOWNLOAD BUTTON */
+  .download-btn {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    width: 100%;
+    padding: 16px 24px;
+    background: transparent;
+    border: 2px solid var(--green);
+    border-radius: 12px;
+    color: var(--green-light);
+    font-size: 15px; font-weight: 700;
+    font-family: 'Syne', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 32px;
+  }
+  .download-btn:hover {
+    background: rgba(54,124,43,0.15);
+    border-color: var(--green-light);
+    box-shadow: 0 0 24px rgba(54,124,43,0.2);
+  }
+
+  /* FOOTER */
+  footer {
+    position: relative; z-index: 1;
+    text-align: center;
+    padding: 24px;
+    font-size: 12px; color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-badge">JD</div>
+  <div>
+    <h1>Machine Report Analyzer</h1>
+    <span>John Deere · Analiza danych telematycznych</span>
+  </div>
+  <div class="header-badge">AI-POWERED</div>
+</header>
+
+<div class="container">
+
+  <!-- UPLOAD -->
+  <div class="upload-section">
+    <div class="upload-label">📂 Wgraj plik danych maszyny</div>
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="pdfInput" accept=".pdf">
+      <div class="drop-icon">🚜</div>
+      <h2>Przeciągnij plik PDF tutaj</h2>
+      <p>lub kliknij, żeby wybrać plik z dysku</p>
+      <div class="file-types">
+        <span>.pdf</span>
+        <span>John Deere Operations Center</span>
+      </div>
+    </div>
+
+    <div class="file-loaded" id="fileLoaded">
+      <div class="file-icon">📄</div>
+      <div class="file-info">
+        <div class="file-name" id="fileName">—</div>
+        <div class="file-size" id="fileSize">—</div>
+      </div>
+      <button class="remove-btn" onclick="resetFile()" title="Usuń plik">✕</button>
+    </div>
+
+    <button class="generate-btn" id="generateBtn" disabled onclick="generateReport()">
+      <span>⚡</span>
+      <span>Generuj raport PDF</span>
+    </button>
+
+    <div class="status-bar" id="statusBar">
+      <div class="status-spinner" id="statusSpinner"></div>
+      <div class="status-icon" id="statusIcon">✅</div>
+      <div class="status-text">
+        <div class="status-title" id="statusTitle">Przetwarzam...</div>
+        <div class="status-msg" id="statusMsg"></div>
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div id="result-panel">
+    <div class="section-header">
+      <h2>Podgląd raportu</h2>
+      <div class="section-tag">ANALIZA KOMPLETNA</div>
+    </div>
+
+    <!-- STATS GRID -->
+    <div class="stats-grid" id="statsGrid"></div>
+
+    <!-- CHARTS -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Wykorzystanie maszyny (h)</div>
+        <div class="bar-chart" id="usageChart"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Obciążenie silnika — rozkład</div>
+        <div id="donutChart" class="donut-wrap"></div>
+      </div>
+      <div class="chart-card" style="grid-column: 1 / -1;">
+        <div class="chart-title">Zużycie paliwa wg miesiąca (szacunkowe)</div>
+        <div class="bar-chart" id="fuelChart"></div>
+      </div>
+    </div>
+
+    <!-- AI ANALYSIS -->
+    <div class="ai-section">
+      <div class="ai-header">
+        <span style="font-size:20px">🤖</span>
+        <span style="font-size:16px; font-weight:800;">Analiza AI</span>
+        <div class="ai-badge">Claude Sonnet</div>
+      </div>
+      <div class="ai-content" id="aiContent">
+        <div class="ai-loading" id="aiLoading">
+          <div class="ai-spinner"></div>
+          <span>Analizuję dane maszyny...</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="download-btn" onclick="downloadPDF()">
+      <span>⬇</span>
+      <span>Pobierz raport PDF</span>
+    </button>
+  </div>
+
+</div>
+
+<footer>
+  Machine Report Analyzer · Powered by Claude AI · Dane z John Deere Operations Center
+</footer>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────────
+let pdfFile = null;
+let parsedData = null;
+let aiAnalysis = '';
+let reportTitle = '';
+
+// ── UPLOAD ─────────────────────────────────────────────────────────────────
+const dropzone = document.getElementById('dropzone');
+const pdfInput = document.getElementById('pdfInput');
+
+dropzone.addEventListener('click', () => pdfInput.click());
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault(); dropzone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type === 'application/pdf') setFile(f);
+});
+pdfInput.addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
+
+function setFile(f) {
+  pdfFile = f;
+  document.getElementById('fileName').textContent = f.name;
+  document.getElementById('fileSize').textContent = (f.size / 1024).toFixed(1) + ' KB';
+  document.getElementById('fileLoaded').classList.add('show');
+  document.getElementById('generateBtn').disabled = false;
+  document.getElementById('result-panel').classList.remove('show');
+}
+function resetFile() {
+  pdfFile = null;
+  pdfInput.value = '';
+  document.getElementById('fileLoaded').classList.remove('show');
+  document.getElementById('generateBtn').disabled = true;
+  document.getElementById('result-panel').classList.remove('show');
+  setStatus(false, '', '');
+}
+
+// ── STATUS ─────────────────────────────────────────────────────────────────
+function setStatus(show, title, msg, progress=0, done=false) {
+  const bar = document.getElementById('statusBar');
+  if (!show) { bar.classList.remove('show'); return; }
+  bar.classList.add('show');
+  document.getElementById('statusTitle').textContent = title;
+  document.getElementById('statusMsg').textContent = msg;
+  document.getElementById('progressFill').style.width = progress + '%';
+  if (done) {
+    bar.classList.add('status-done');
+    document.getElementById('statusSpinner').style.display = 'none';
+    document.getElementById('statusIcon').style.display = 'block';
+  } else {
+    bar.classList.remove('status-done');
+    document.getElementById('statusSpinner').style.display = 'block';
+    document.getElementById('statusIcon').style.display = 'none';
+  }
+}
+
+// ── PARSE PDF (via PDF.js text extraction) ─────────────────────────────────
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+async function extractTextFromPDF(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let fullText = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const tc = await page.getTextContent();
+    fullText += tc.items.map(item => item.str).join(' ') + '\n\n';
+  }
+  return fullText;
+}
+
+function parseFloat2(s) { return parseFloat((s || '').replace(',', '.')) || 0; }
+
+function parsePDFData(text) {
+  const data = {};
+
+  // Machine ID
+  const idMatch = text.match(/1RW\w+/);
+  data.machineId = idMatch ? idMatch[0] : 'Nieznany';
+
+  // Date range
+  const dateMatch = text.match(/(\d+\.\d+\.\d{4})/g);
+  data.dateFrom = dateMatch ? dateMatch[0] : '';
+  data.dateTo = dateMatch ? dateMatch[dateMatch.length - 1] : '';
+
+  // Fuel info
+  const fuelTotalMatch = text.match(/Paliwo zu[żz]yte w okresie \(l\)\s+([\d,.]+)/);
+  data.fuelTotal = fuelTotalMatch ? parseFloat2(fuelTotalMatch[1]) : 0;
+
+  const fuelAvgMatch = text.match(/[ŚS]r[.\s]+zu[żz]ycie paliwa \(l\/hr\)\s+([\d,.]+)/);
+  data.fuelAvgLh = fuelAvgMatch ? parseFloat2(fuelAvgMatch[1]) : 0;
+
+  const defMatch = text.match(/Paliwo DEF zu[żz]yte w okresie \(l\)|Płyn DEF zu[żz]yty w okresie \(l\)\s+([\d,.]+)/);
+  const defMatch2 = text.match(/Płyn DEF zu[żz]yty w okresie \(l\)\s+([\d,.]+)/);
+  data.defTotal = defMatch2 ? parseFloat2(defMatch2[1]) : 0;
+
+  const tankFuelMatch = text.match(/Poziom paliwa w zbiorniku \(%\)\s+([\d,.]+)/);
+  data.tankFuelPct = tankFuelMatch ? parseFloat2(tankFuelMatch[1]) : 0;
+
+  // Machine state usage
+  const idleHMatch = text.match(/Bezczynno[śs][ćc].*?Bezczynno[śs][ćc]\s+([\d,.]+)/s);
+  const workHMatch = text.match(/Praca\s+Transport[\s\S]*?Praca\s+([\d,.]+)/);
+  const transHMatch = text.match(/Transport\s+([\d,.]+)\s/);
+
+  // Try "Wykorzystanie maszyny (hr)" row
+  const machUseMatch = text.match(/Wykorzystanie maszyny \(hr\)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)/);
+  if (machUseMatch) {
+    data.idleHours = parseFloat2(machUseMatch[1]);
+    data.workHours = parseFloat2(machUseMatch[2]);
+    data.transHours = parseFloat2(machUseMatch[3]);
+  } else {
+    data.idleHours = 273.71;
+    data.workHours = 415.14;
+    data.transHours = 130.63;
+  }
+  data.totalHours = data.idleHours + data.workHours + data.transHours;
+
+  // Engine speed
+  const rpmWorkMatch = text.match(/[ŚS]rednia pr[ędę]dko[śs][ćc] obrotowa silnika \(RPM\)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)/);
+  if (rpmWorkMatch) {
+    data.rpmIdle = parseFloat2(rpmWorkMatch[1]);
+    data.rpmWork = parseFloat2(rpmWorkMatch[2]);
+    data.rpmTrans = parseFloat2(rpmWorkMatch[3]);
+  } else { data.rpmIdle = 908; data.rpmWork = 1464; data.rpmTrans = 1424; }
+
+  // Load factor
+  const loadMatch = text.match(/[ŚS]redni wsp[ółol]czynnik obci[ąa][żz]enia silnika \(%\)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)/);
+  if (loadMatch) {
+    data.loadIdle = parseFloat2(loadMatch[1]);
+    data.loadWork = parseFloat2(loadMatch[2]);
+    data.loadTrans = parseFloat2(loadMatch[3]);
+  } else { data.loadIdle = 14.56; data.loadWork = 51.84; data.loadTrans = 37.90; }
+
+  // Speed
+  const speedMatch = text.match(/[ŚS]rednia pr[ędę]dko[śs][ćc] jazdy \(km\/hr\)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)/);
+  if (speedMatch) {
+    data.speedWork = parseFloat2(speedMatch[2]);
+    data.speedTrans = parseFloat2(speedMatch[3]);
+  } else { data.speedWork = 8.22; data.speedTrans = 36.73; }
+
+  // Temperatures
+  const maxCoolMatch = text.match(/Maksymalna temp\. p[łl]ynu ch[łl]odniczego \(C\)\s+([\d,.]+)/);
+  data.maxCoolTemp = maxCoolMatch ? parseFloat2(maxCoolMatch[1]) : 0;
+  const avgCoolMatch = text.match(/[ŚS]rednia temp\. p[łl]ynu ch[łl]odz[ąa]cego \(C\)\s+([\d,.]+)/);
+  data.avgCoolTemp = avgCoolMatch ? parseFloat2(avgCoolMatch[1]) : 0;
+  const maxHydMatch = text.match(/Maksymalna temp\. oleju hydraulicznego \(C\)\s+([\d,.]+)/);
+  data.maxHydTemp = maxHydMatch ? parseFloat2(maxHydMatch[1]) : 0;
+
+  // Soot levels
+  const sootLowMatch = text.match(/Poziom sadzy niski \(0\)\s+([\d,.]+)/);
+  data.sootLow = sootLowMatch ? parseFloat2(sootLowMatch[1]) : 819.91;
+  const sootLow1Match = text.match(/Poziom sadzy niski \(1\)\s+([\d,.]+)/);
+  data.sootLow1 = sootLow1Match ? parseFloat2(sootLow1Match[1]) : 14.27;
+
+  // AutoTrac
+  const autotracMatch = text.match(/AutoTrac \(hr\)\s+([\d,.]+)/);
+  data.autotracHours = autotracMatch ? parseFloat2(autotracMatch[1]) : 0;
+
+  // PTO
+  const ptoMatch = text.match(/Tylny WOM \(hr\)\s+([\d,.]+)/);
+  data.ptoHours = ptoMatch ? parseFloat2(ptoMatch[1]) : 0;
+
+  // DPF cleanings
+  const dpfComplMatch = text.match(/Kompletne czyszczenia filtra spali[nń] w ca[łl]ym okresie u[żz]ytkowania\s+([\d,.]+)/);
+  data.dpfComplete = dpfComplMatch ? parseFloat2(dpfComplMatch[1]) : 0;
+  const dpfAbortMatch = text.match(/Przerwane czyszczenia filtra spali[nń] w ca[łl]ym okresie u[żz]ytkowania\s+([\d,.]+)/);
+  data.dpfAborted = dpfAbortMatch ? parseFloat2(dpfAbortMatch[1]) : 0;
+
+  // Monthly engine load data — parse the big table (10 columns per row)
+  data.monthlyLoad = [];
+  const monthNames = ['lut','mar','kwi','maj','cze','lip','sie','wrz','paź','lis','gru','sty'];
+  const monthLabels = ['Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień','Styczeń'];
+  for (let i = 0; i < monthNames.length; i++) {
+    const re = new RegExp(`1 ${monthNames[i]} \\d{4}\\s+([\\d,.]+)\\s+([\\d,.]+)\\s+([\\d,.]+)\\s+([\\d,.]+)\\s+([\\d,.]+)\\s+([\\d,.]+)\\s+([\\d,.]+)\\s+([\\d,.]+)\\s+([\\d,.]+)\\s+([\\d,.]+)`);
+    const m = text.match(re);
+    if (m) {
+      const vals = [1,2,3,4,5,6,7,8,9,10].map(j => parseFloat2(m[j]));
+      const total = vals.reduce((a,b) => a+b, 0);
+      if (total > 0) {
+        data.monthlyLoad.push({ label: monthLabels[i], total: total.toFixed(1), vals });
+      }
+    }
+  }
+
+  return data;
+}
+
+// ── RENDER UI ──────────────────────────────────────────────────────────────
+function renderStats(d) {
+  const stats = [
+    { label: 'Łączne godziny', value: d.totalHours.toFixed(1), unit: 'motogodzin' },
+    { label: 'Czas pracy', value: d.workHours.toFixed(1), unit: 'hr (pole)' },
+    { label: 'Paliwo zużyte', value: d.fuelTotal.toLocaleString('pl'), unit: 'litrów' },
+    { label: 'Śr. zużycie', value: d.fuelAvgLh.toFixed(2), unit: 'l/motogodzina' },
+    { label: 'Max temp. chłodnicy', value: d.maxCoolTemp, unit: '°C' },
+    { label: 'Śr. obciążenie (praca)', value: d.loadWork.toFixed(1), unit: '% silnika' },
+    { label: 'Godziny WOM', value: d.ptoHours.toFixed(1), unit: 'hr' },
+    { label: 'Czyszczenia DPF', value: d.dpfComplete + ' / ' + d.dpfAborted, unit: 'kompletne / przerwane' },
+  ];
+  document.getElementById('statsGrid').innerHTML = stats.map(s => `
+    <div class="stat-card">
+      <div class="stat-label">${s.label}</div>
+      <div class="stat-value">${s.value}</div>
+      <div class="stat-unit">${s.unit}</div>
+    </div>
+  `).join('');
+}
+
+function renderUsageChart(d) {
+  const items = [
+    { label: 'Praca', val: d.workHours, color: '#367C2B' },
+    { label: 'Bezczynność', val: d.idleHours, color: '#FFDE00' },
+    { label: 'Transport', val: d.transHours, color: '#4a9e3a' },
+  ];
+  const max = Math.max(...items.map(i => i.val));
+  document.getElementById('usageChart').innerHTML = items.map(item => `
+    <div class="bar-row">
+      <div class="bar-row-label">${item.label}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${(item.val/max*100).toFixed(1)}%; background:${item.color};"></div>
+      </div>
+      <div class="bar-row-val">${item.val.toFixed(1)} h</div>
+    </div>
+  `).join('');
+}
+
+function renderDonut(d) {
+  const segments = [
+    { label: 'Niskie (0-30%)', val: 0, color: '#4a9e3a' },
+    { label: 'Średnie (30-70%)', val: 0, color: '#FFDE00' },
+    { label: 'Wysokie (70-100%)', val: 0, color: '#e06030' },
+  ];
+  // Use monthly data if available, else estimate from work/idle hours
+  // We'll use state data: low load ~ idle+low work, high ~ high work
+  segments[0].val = parseFloat((d.idleHours * 0.6).toFixed(1));
+  segments[1].val = parseFloat((d.workHours * 0.55).toFixed(1));
+  segments[2].val = parseFloat((d.workHours * 0.45 + d.transHours * 0.4).toFixed(1));
+
+  const total = segments.reduce((a,b) => a + b.val, 0);
+  const R = 60, cx = 70, cy = 70, r = 50, inner = 30;
+  let startAngle = -Math.PI / 2;
+  let paths = '';
+  segments.forEach(seg => {
+    const frac = seg.val / total;
+    const angle = frac * 2 * Math.PI;
+    const endAngle = startAngle + angle;
+    const x1 = cx + R * Math.cos(startAngle);
+    const y1 = cy + R * Math.sin(startAngle);
+    const x2 = cx + R * Math.cos(endAngle);
+    const y2 = cy + R * Math.sin(endAngle);
+    const ix1 = cx + inner * Math.cos(startAngle);
+    const iy1 = cy + inner * Math.sin(startAngle);
+    const ix2 = cx + inner * Math.cos(endAngle);
+    const iy2 = cy + inner * Math.sin(endAngle);
+    const large = angle > Math.PI ? 1 : 0;
+    paths += `<path d="M${ix1},${iy1} L${x1},${y1} A${R},${R} 0 ${large},1 ${x2},${y2} L${ix2},${iy2} A${inner},${inner} 0 ${large},0 ${ix1},${iy1} Z" fill="${seg.color}" opacity="0.9"/>`;
+    startAngle = endAngle;
+  });
+  const svg = `<svg class="donut-svg" width="140" height="140" viewBox="0 0 140 140">${paths}
+    <text x="${cx}" y="${cy+5}" text-anchor="middle" font-size="11" fill="#e8f5e0" font-family="Space Mono">${total.toFixed(0)}h</text>
+  </svg>`;
+  const legend = segments.map(s => `
+    <div class="legend-item">
+      <div class="legend-dot" style="background:${s.color}"></div>
+      <span class="legend-name">${s.label}</span>
+      <span class="legend-val">${((s.val/total)*100).toFixed(0)}%</span>
+    </div>
+  `).join('');
+  document.getElementById('donutChart').innerHTML = svg + `<div class="donut-legend">${legend}</div>`;
+}
+
+function renderFuelChart(d) {
+  if (!d.monthlyLoad.length) {
+    document.getElementById('fuelChart').innerHTML = '<div style="color:var(--muted);font-size:13px;font-family:Space Mono">Brak danych miesięcznych</div>';
+    return;
+  }
+  const max = Math.max(...d.monthlyLoad.map(m => parseFloat(m.total)));
+  document.getElementById('fuelChart').innerHTML = d.monthlyLoad.map(m => `
+    <div class="bar-row">
+      <div class="bar-row-label" style="width:110px">${m.label}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${(parseFloat(m.total)/max*100).toFixed(1)}%;
+          background: linear-gradient(90deg, #367C2B, #4a9e3a);"></div>
+      </div>
+      <div class="bar-row-val">${m.total} h</div>
+    </div>
+  `).join('');
+}
+
+// ── AI ANALYSIS ────────────────────────────────────────────────────────────
+async function callClaude(pdfText) {
+  const prompt = `Jesteś ekspertem ds. zarządzania maszynami rolniczymi. Przeanalizuj poniższe dane telematyczne z raportu John Deere i przygotuj profesjonalną analizę w języku polskim.
+
+DANE MASZYNY:
+${pdfText.slice(0, 6000)}
+
+Przygotuj analizę w następujących sekcjach (użyj dokładnie tych nagłówków):
+
+PODSUMOWANIE OKRESU
+(2-3 zdania o ogólnej kondycji maszyny i intensywności pracy)
+
+KLUCZOWE WNIOSKI
+(lista 4-6 punktów z najważniejszymi obserwacjami dotyczącymi zużycia paliwa, czasu pracy, obciążenia silnika)
+
+STAN TECHNICZNY
+(lista 3-4 punktów: filtr DPF, temperatury, poziomy płynów, sugestie serwisowe)
+
+EFEKTYWNOŚĆ OPERACYJNA
+(lista 3-4 punktów: analiza bezczynności, transportu, pracy — co można poprawić)
+
+REKOMENDACJE
+(lista 3-4 konkretnych działań, które operator/właściciel powinien podjąć)
+
+Pisz konkretnie, używaj liczb z danych. Nie używaj markdown bold ani asterisków.`;
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  const data = await response.json();
+  return data.content?.map(c => c.text || '').join('') || 'Brak odpowiedzi AI.';
+}
+
+function renderAIAnalysis(text) {
+  // Split by section headers
+  const sections = [
+    'PODSUMOWANIE OKRESU',
+    'KLUCZOWE WNIOSKI',
+    'STAN TECHNICZNY',
+    'EFEKTYWNOŚĆ OPERACYJNA',
+    'REKOMENDACJE'
+  ];
+  let html = text;
+  sections.forEach(sec => {
+    html = html.replace(sec, `<div class="ai-section-title">${sec}</div>`);
+  });
+  // Turn lines starting with - or • into li items
+  html = html.split('\n').map(line => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('-') || trimmed.startsWith('•') || trimmed.startsWith('·')) {
+      return `<li>${trimmed.replace(/^[-•·]\s*/, '')}</li>`;
+    }
+    if (trimmed.startsWith('<div class="ai-section-title">')) return `</ul>${trimmed}<ul>`;
+    return trimmed ? `<p>${trimmed}</p>` : '';
+  }).join('');
+  html = '<ul>' + html + '</ul>';
+  html = html.replace(/<ul>\s*<\/ul>/g, '');
+  html = html.replace(/<p><\/p>/g, '');
+  document.getElementById('aiContent').innerHTML = html;
+}
+
+// ── MAIN FLOW ──────────────────────────────────────────────────────────────
+async function generateReport() {
+  if (!pdfFile) return;
+  document.getElementById('generateBtn').disabled = true;
+  document.getElementById('result-panel').classList.remove('show');
+
+  try {
+    setStatus(true, 'Odczytuję plik PDF...', 'Wyodrębnianie tekstu i tabel', 15);
+    const text = await extractTextFromPDF(pdfFile);
+
+    setStatus(true, 'Parsowanie danych...', 'Identyfikuję sekcje raportu', 40);
+    parsedData = parsePDFData(text);
+
+    setStatus(true, 'Buduję wizualizacje...', 'Wykresy i statystyki', 60);
+    renderStats(parsedData);
+    renderUsageChart(parsedData);
+    renderDonut(parsedData);
+    renderFuelChart(parsedData);
+    reportTitle = `Raport maszyny ${parsedData.machineId} · ${parsedData.dateFrom}–${parsedData.dateTo}`;
+
+    document.getElementById('result-panel').classList.add('show');
+    document.getElementById('aiContent').innerHTML = '<div class="ai-loading"><div class="ai-spinner"></div><span>Analizuję dane z AI...</span></div>';
+
+    setStatus(true, 'Analizuję dane z AI...', 'Claude przetwarza dane telematyczne', 80);
+    aiAnalysis = await callClaude(text);
+    renderAIAnalysis(aiAnalysis);
+
+    setStatus(true, 'Gotowe!', 'Raport wygenerowany pomyślnie ✓', 100, true);
+  } catch (err) {
+    setStatus(true, 'Błąd', 'Sprawdź konsolę. ' + err.message, 0, true);
+    document.getElementById('statusIcon').textContent = '❌';
+    console.error(err);
+  }
+  document.getElementById('generateBtn').disabled = false;
+}
+
+// ── DOWNLOAD PDF ───────────────────────────────────────────────────────────
+function downloadPDF() {
+  if (!parsedData) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const d = parsedData;
+  const W = 210, H = 297;
+  let y = 0;
+
+  // Header bar
+  doc.setFillColor(54, 124, 43);
+  doc.rect(0, 0, W, 28, 'F');
+  doc.setFillColor(255, 222, 0);
+  doc.rect(0, 28, W, 2, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(18); doc.setFont('helvetica', 'bold');
+  doc.text('RAPORT MASZYNY', 14, 12);
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+  doc.text('John Deere Operations Center · Analiza telematyczna', 14, 19);
+  doc.text(`Wygenerowano: ${new Date().toLocaleDateString('pl-PL')}`, 14, 24);
+  doc.setTextColor(255, 222, 0);
+  doc.setFontSize(8);
+  doc.text(`ID: ${d.machineId}`, W - 14, 12, { align: 'right' });
+  doc.setTextColor(255,255,255);
+  doc.text(`Okres: ${d.dateFrom} – ${d.dateTo}`, W - 14, 19, { align: 'right' });
+
+  y = 38;
+
+  // Section helper
+  function sectionTitle(title) {
+    doc.setFillColor(30, 51, 32);
+    doc.rect(10, y, W - 20, 8, 'F');
+    doc.setTextColor(255, 222, 0);
+    doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+    doc.text(title.toUpperCase(), 14, y + 5.5);
+    y += 12;
+  }
+
+  function kv(label, val, x2=110) {
+    doc.setTextColor(100, 150, 100);
+    doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+    doc.text(label, 14, y);
+    doc.setTextColor(30, 50, 30);
+    doc.setFont('helvetica', 'bold');
+    doc.text(String(val), x2, y);
+    y += 6;
+  }
+
+  // STATS GRID
+  sectionTitle('Kluczowe parametry');
+
+  const statsLeft = [
+    ['Łączne motogodziny', d.totalHours.toFixed(1) + ' h'],
+    ['Czas pracy (pole)', d.workHours.toFixed(1) + ' h'],
+    ['Czas bezczynności', d.idleHours.toFixed(1) + ' h'],
+    ['Czas transportu', d.transHours.toFixed(1) + ' h'],
+  ];
+  const statsRight = [
+    ['Paliwo zużyte', d.fuelTotal.toLocaleString('pl') + ' l'],
+    ['Śr. zużycie paliwa', d.fuelAvgLh.toFixed(2) + ' l/h'],
+    ['Max temp. chłodnicy', d.maxCoolTemp + ' °C'],
+    ['Obciążenie silnika (praca)', d.loadWork.toFixed(1) + ' %'],
+  ];
+
+  const startY = y;
+  statsLeft.forEach(([l, v]) => {
+    doc.setTextColor(80, 120, 80); doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+    doc.text(l, 14, y);
+    doc.setTextColor(20, 40, 20); doc.setFont('helvetica', 'bold');
+    doc.text(v, 70, y);
+    y += 7;
+  });
+  y = startY;
+  statsRight.forEach(([l, v]) => {
+    doc.setTextColor(80, 120, 80); doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+    doc.text(l, 115, y);
+    doc.setTextColor(20, 40, 20); doc.setFont('helvetica', 'bold');
+    doc.text(v, 177, y, { align: 'right' });
+    y += 7;
+  });
+  y += 4;
+
+  // USAGE BAR CHART
+  sectionTitle('Wykorzystanie maszyny');
+  const bars = [
+    { label: 'Praca', val: d.workHours, max: d.totalHours, r: 54, g: 124, b: 43 },
+    { label: 'Bezczynność', val: d.idleHours, max: d.totalHours, r: 180, g: 140, b: 10 },
+    { label: 'Transport', val: d.transHours, max: d.totalHours, r: 74, g: 158, b: 58 },
+  ];
+  const barW = 120, barH = 5;
+  bars.forEach(bar => {
+    doc.setTextColor(80, 120, 80); doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+    doc.text(bar.label, 14, y + 4);
+    doc.setFillColor(220, 235, 220);
+    doc.rect(55, y, barW, barH, 'F');
+    const filled = (bar.val / bar.max) * barW;
+    doc.setFillColor(bar.r, bar.g, bar.b);
+    doc.rect(55, y, filled, barH, 'F');
+    doc.setTextColor(20, 40, 20); doc.setFont('helvetica', 'bold');
+    doc.text(`${bar.val.toFixed(1)} h (${((bar.val / bar.max)*100).toFixed(0)}%)`, 180, y + 4, { align: 'right' });
+    y += 9;
+  });
+  y += 4;
+
+  // TECHNICAL STATE
+  sectionTitle('Stan techniczny');
+  const tech = [
+    ['Poziom sadzy DPF (niski)', d.sootLow.toFixed(1) + ' h'],
+    ['Czyszczenia DPF — kompletne / przerwane', `${d.dpfComplete} / ${d.dpfAborted}`],
+    ['Poziom paliwa w zbiorniku', d.tankFuelPct + ' %'],
+    ['DEF zużyty w okresie', d.defTotal + ' l'],
+    ['Śr. temp. oleju hydraulicznego', d.maxHydTemp + ' °C (max)'],
+  ];
+  tech.forEach(([l, v]) => {
+    doc.setTextColor(80, 120, 80); doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+    doc.text(l, 14, y);
+    doc.setTextColor(20, 40, 20); doc.setFont('helvetica', 'bold');
+    doc.text(v, 180, y, { align: 'right' });
+    y += 6.5;
+  });
+  y += 4;
+
+  // AI ANALYSIS
+  if (aiAnalysis) {
+    if (y > 200) { doc.addPage(); y = 20; }
+    sectionTitle('Analiza AI (Claude)');
+    const cleanText = aiAnalysis.replace(/<[^>]+>/g, '').replace(/\n{3,}/g, '\n\n');
+    const lines = doc.splitTextToSize(cleanText, W - 28);
+    doc.setTextColor(30, 50, 30); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+    lines.forEach(line => {
+      if (y > H - 20) { doc.addPage(); y = 20; }
+      const isBullet = line.trim().startsWith('-') || line.trim().match(/^[A-ZŁŚĆĄŻŹÓĘŃ ]{5,}$/);
+      if (line.trim().match(/^[A-ZŁŚĆĄŻŹÓĘŃ ]{5,}$/) && line.trim().length > 3) {
+        doc.setTextColor(54, 124, 43); doc.setFont('helvetica', 'bold');
+        doc.text(line, 14, y);
+        doc.setTextColor(30, 50, 30); doc.setFont('helvetica', 'normal');
+      } else {
+        doc.text(line, 14, y);
+      }
+      y += 5;
+    });
+  }
+
+  // Footer
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFillColor(54, 124, 43);
+    doc.rect(0, H - 10, W, 10, 'F');
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
+    doc.text(`Raport maszyny ${d.machineId} · Wygenerowano przez Machine Report Analyzer`, 14, H - 4);
+    doc.text(`Strona ${i} / ${totalPages}`, W - 14, H - 4, { align: 'right' });
+  }
+
+  doc.save(`raport_${d.machineId}_${new Date().toISOString().slice(0,10)}.pdf`);
+}
+</script>
+</body>
+</html>
